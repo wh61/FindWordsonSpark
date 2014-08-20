@@ -6,6 +6,15 @@
 
 package findwordsonspark;
 
+import java.io.IOException;  
+import java.net.URI;  
+import java.net.URISyntaxException;  
+
+
+import org.apache.hadoop.fs.FileUtil;  
+import org.apache.hadoop.fs.Path; 
+
+
 
 import java.*;
 import java.util.*;
@@ -19,8 +28,12 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.*;
 import TransformFunctions.*;
 import findwordsonspark.*;
+import java.net.URI;
 import org.apache.spark.api.java.function.*;
 import scala.Tuple2;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.io.IOUtils; 
 
 /**
  *
@@ -34,6 +47,8 @@ public class FindWordsonSpark {
     
     
     private static int wordLen, MinOccur, MinDoc;
+    
+    private static long partitionSize;
     
     private static double MinDof;
     
@@ -49,6 +64,8 @@ public class FindWordsonSpark {
     
     private static void setInputFileName(String str) { InputFileName = str; }
     
+    private static void setPartitionSize(long val) { partitionSize = val;}
+    
     public static int getWordLen() { return wordLen; }
     
     public static int getMinOccur() { return MinOccur; }
@@ -59,21 +76,37 @@ public class FindWordsonSpark {
     
     public static String getInputFileName() { return InputFileName; }
     
+    public static long getPartitionSize() { return partitionSize; }
+    
+    
+    
     
     
     public static void main(String[] args) {
         // TODO code application logic here
         setWordLen(5);
-        setMinOccur(30);
-        setMinDoc(40);
-        setMinDof(2.1);
+        setMinOccur(12);
+        setMinDoc(50);
+        setMinDof(2.3);
+        setPartitionSize(4444444);
         setInputFileName(args[0]);
         
-        SparkConf conf = new SparkConf().setAppName("FindWordsonSpark");
+        long FileLength = 0;
         
-        JavaSparkContext sc = new JavaSparkContext(conf);
+        try {
+            FileLength = getFileLength(getInputFileName());
+        } catch (IOException e) {
+            System.out.println("No such file");
+        }
         
-        JavaRDD<String> adFile = sc.textFile(getInputFileName(), 15);
+        
+        SparkConf SPconf = new SparkConf().setAppName("FindWordsonSpark").setMaster("local");
+        
+        JavaSparkContext sc = new JavaSparkContext(SPconf);
+        
+        int num = (int)(FileLength / getPartitionSize()) + 1;
+        
+        JavaRDD<String> adFile = sc.textFile(getInputFileName(), num);
         
         JavaRDD<String> ad = adFile.map(new WashContext());
         
@@ -111,7 +144,17 @@ public class FindWordsonSpark {
         
        
         resultRDD.saveAsTextFile(args[1]);
-       
+        
+          
+    }
+    
+    private static long getFileLength(String file) throws IOException {
+        Configuration conf = new Configuration();  
+        FileSystem fs = FileSystem.get(URI.create(file), conf);
+        Path path = new Path(file);
+        long rs = fs.getLength(path);
+        return rs;
         
     }
-}
+    
+ }
