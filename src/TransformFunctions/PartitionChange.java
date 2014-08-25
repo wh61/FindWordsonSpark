@@ -22,6 +22,17 @@ import scala.Tuple2;
  *
  * @author wuhong
  */
+
+
+
+/**
+ * 对一个Partition的文本进行抽词.
+ * 输入Parition文本, 输出Word-Freqency(key-value)对
+ */
+
+
+
+
 public class PartitionChange implements FlatMapFunction<Iterator<String>, Tuple2<String, Integer>> {
     
     private int MinOccur = FindWordsonSpark.getMinOccur();
@@ -38,47 +49,56 @@ public class PartitionChange implements FlatMapFunction<Iterator<String>, Tuple2
     
     public Map<String, Integer> MainFunction(List<String> adList) {
         
+        // 把Partition里的Iteratable String首尾相接起来变成一个大的String
         StringBuilder buildstr = new StringBuilder();
         for (String s : adList) {
             buildstr.append(s);
         }
         
         setTotalLen(buildstr.length());
-        
+               
+        //String后插入若干个'a', 防止最后几个词长度不够,造成越界
         for (int i = 0; i <= wordLen; ++i) {
             buildstr.append('a');
-        }
+        }     
         
         String str = new String(buildstr);
         
+        //大串取反, 因为要取反向前缀计算左自由度
         buildstr.reverse();
         
         String strReverse = new String(buildstr);
         
         buildstr = null;
         
+        //建立正向前缀数组
         List<String> postfixList = buildPostfixList(str);
         
         str = null;
         
+        //计算候选词-词频,同时过滤去频率很小的
         Map<String, Integer> FreqencyMap = CountAllFreqency(postfixList);
         
+        //对上一步通过词频筛选的词进一步计算凝固度,并且筛选出凝固度达到要求的候选词.
         Set<String> PreValidWords = calculateDoc(FreqencyMap).keySet();
         
+        //对筛选出来凝固度与频率的达到要求的词计算其右自由熵
         Map<String, Double> RDOF = DOF(PreValidWords, FreqencyMap, postfixList, false);
         
-        
+        //建立反方向前缀数组
         postfixList = buildPostfixList(strReverse);
         
         strReverse = null;
         
-        
+        //计算右自由熵
         Map<String, Double> LDOF = DOF(PreValidWords, FreqencyMap, postfixList, true);
         
         postfixList = null;
         
+        
         Map<String, Integer> mp = new HashMap<String, Integer>();
         
+        //计算自由度并筛选出自由度符合要求的
         for (String s : PreValidWords) {
             if (!(RDOF.containsKey(s) && LDOF.containsKey(s))) continue;
             double L = LDOF.get(s);
@@ -89,6 +109,7 @@ public class PartitionChange implements FlatMapFunction<Iterator<String>, Tuple2
             }
         }
         
+        //返回key-value对
         return mp;   
         
     }
@@ -146,12 +167,12 @@ public class PartitionChange implements FlatMapFunction<Iterator<String>, Tuple2
                     if (str.charAt(len) == lastChar) {
                         lastCharCount++;
                     } else {
-                        DofVal += lastCharCount * 1.0 / wordFreqency * Math.log(1.0 * lastCharCount / wordFreqency);
+                        DofVal += (double)lastCharCount / wordFreqency * Math.log((double)lastCharCount / wordFreqency);
                         lastCharCount = 1;
                         lastChar = str.charAt(len);
                     }
                 } else {
-                    DofVal += lastCharCount * 1.0 / wordFreqency * Math.log(1.0 * lastCharCount / wordFreqency);
+                    DofVal += (double)lastCharCount / wordFreqency * Math.log((double)lastCharCount / wordFreqency);
                     Dof.put(lastWord, -DofVal);
                     lastCharCount = 1;
                     DofVal = 0;
@@ -211,9 +232,6 @@ public class PartitionChange implements FlatMapFunction<Iterator<String>, Tuple2
         
         return fre;
     }
-    
-    
-    
     
     
     public Iterable<Tuple2<String, Integer>> call(Iterator<String> ads) {

@@ -84,12 +84,15 @@ public class FindWordsonSpark {
     
     public static void main(String[] args) {
         // TODO code application logic here
-        setWordLen(5);
+        setWordLen(8);
         setMinOccur(12);
-        setMinDoc(50);
-        setMinDof(2.3);
+        setMinDoc(60);
+        setMinDof(1.5);
         setPartitionSize(4444444);
         setInputFileName(args[0]);
+        
+        //以上是设置各个参数,抽词的最大长度, 最小频率,最小凝固度, 最小自由度, 单个PARTITION大小, 输入文件名
+        
         
         long FileLength = 0;
         
@@ -99,18 +102,28 @@ public class FindWordsonSpark {
             System.out.println("No such file");
         }
         
+        //获取文本大小
         
-        SparkConf SPconf = new SparkConf().setAppName("FindWordsonSpark").setMaster("local");
+        
+        SparkConf SPconf = new SparkConf().setAppName("FindWordsonSpark");
+        
+        //设置模式 加上.setMaster("local")为单机模式.
         
         JavaSparkContext sc = new JavaSparkContext(SPconf);
         
         int num = (int)(FileLength / getPartitionSize()) + 1;
         
+        //根据文本大小,计算分块数
+        
         JavaRDD<String> adFile = sc.textFile(getInputFileName(), num);
         
         JavaRDD<String> ad = adFile.map(new WashContext());
         
-        JavaRDD<Tuple2<String, Integer>> wf = ad.mapPartitions(new PartitionChange());                     
+        //原来文本按照一条条ad建立 RDD<String> 然后map清洗每一条ad
+        
+        JavaRDD<Tuple2<String, Integer>> wf = ad.mapPartitions(new PartitionChange()); 
+        
+        //每个partition分别抽词,得到每个Partition的 Word-Freqency
         
         JavaPairRDD<String, Integer> wfPair = wf.mapToPair(
                 new PairFunction<Tuple2<String, Integer>, String, Integer>() {
@@ -130,6 +143,7 @@ public class FindWordsonSpark {
         
         JavaPairRDD<String, Integer> TotalWfPair = wfPair.reduceByKey(funcSum);
         
+        //reduce~
         
         wfPair.unpersist();
         
@@ -142,10 +156,11 @@ public class FindWordsonSpark {
         
         JavaPairRDD<Integer, String> resultRDD =  TotalWfPair.mapToPair(funcwf2fw).sortByKey(false);
         
+        //按照频率sort
        
         resultRDD.saveAsTextFile(args[1]);
         
-          
+        //保存结果
     }
     
     private static long getFileLength(String file) throws IOException {

@@ -28,12 +28,12 @@ public class WashContext implements Function<String, String>{
        int lastchar = 0;
        for (char ch : sourceText.toCharArray()) {
            if (('0' <= ch && ch <= '9') || ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z')) {
-               lastchar++;
-               if (lastchar < 8) 
-                   str.append(ch);
+            //   lastchar++;
+            //   if (lastchar < 8) 
+               str.append(ch);
            } else if (0x4E00 <= ch && ch <= 0x9FA5) {
                str.append(ch);
-               lastchar = 0;
+               //lastchar = 0;
            } else {
            }
        }
