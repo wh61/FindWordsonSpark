@@ -24,7 +24,7 @@ A small project to create a words list of some texts which is running on Spark.
 
 于是,算法的核心想法就是,在spark处理分块时,我大概以5m为一个parition,并行的对各个partition里5m的文本进行抽词,得到key-value(词-词频)对,然后各个partition得到的(key-value)进行reduce操作.得到所有的key-value(词-词频)对.
 
- ![image](https://github.com/wh61/FindWordsonSpark/raw/master/img/FindWordsonSpark.png)
+ ![image](https://github.com/wh61/FindWordsonSpark/master/img/FindWordsonSpark.png)
 
 在抽词的时候,设定了几个参数,最小频数,最小凝固度和最小自由度,一个词要超过最小凝固度和最小自由度这个两个条件,才能算是一个词,而他要超过最小频数,才会使我们所关心的词.
 因为在抽词过程中要用到许多map(候选词-词频, 候选词-左(右)自由熵, 候选词-凝固度),这些满满的都是时间空间的消耗,于是算法实现过程中一步一步剪枝下来的.
